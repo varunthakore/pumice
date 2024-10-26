@@ -5,6 +5,6 @@ mod layers;
 pub mod lde;
 mod parameters;
 mod prover;
-mod stone_domain;
+pub mod stone_domain;
 mod test;
 mod verifier;

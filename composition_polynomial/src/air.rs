@@ -27,7 +27,7 @@ pub trait Air<F: PrimeField> {
         periodic_columns: &[F],
         random_coefficients: &[F],
         point: &F,
-        gen_powers: &[F],
+        shifts: &[F],
         precomp_domains: &[F],
     ) -> F;
 
