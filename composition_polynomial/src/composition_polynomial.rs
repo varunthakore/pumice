@@ -153,15 +153,8 @@ pub fn batch_pow<F: PrimeField>(base: &F, exponents: &[usize]) -> Vec<F> {
 }
 
 fn bit_reverse(n: usize, number_of_bits: usize) -> usize {
-    let mut reversed = 0;
-    let mut num = n;
-
-    for _ in 0..number_of_bits {
-        reversed = (reversed << 1) | (num & 1);
-        num >>= 1;
-    }
-
-    reversed
+    debug_assert!(n < (1 << number_of_bits));
+    ((n as u64).reverse_bits() >> (64 - number_of_bits)) as usize
 }
 
 #[cfg(test)]
@@ -180,8 +173,9 @@ mod tests {
         let q_minus_1: num_bigint::BigUint = F::ONE.neg().into();
 
         // Calculate (q - 1) / n
-        assert!(
-            q_minus_1.clone() % n == num_bigint::BigUint::from(0u64),
+        assert_eq!(
+            q_minus_1.clone() % n,
+            num_bigint::BigUint::from(0u64),
             "No subgroup of required size exists"
         );
         let quotient = q_minus_1 / n;
@@ -194,7 +188,6 @@ mod tests {
         let mut rng = rand::thread_rng();
         let mut air: DummyAir<Felt252> = DummyAir::new(4);
         air.composition_polynomial_degree_bound = Some(1000);
-        air.n_constraints = 0;
         let poly = air.create_composition_polynomial(&Felt252::ONE, &vec![]);
         let evaluation_point = Felt252::rand(&mut rng);
 
@@ -224,7 +217,6 @@ mod tests {
 
         let mut air: DummyAir<Felt252> = DummyAir::new(trace_length);
 
-        air.n_constraints = 1;
         air.periodic_columns
             .push(get_random_periodic_col(log_coset_size));
         air.n_columns = n_columns;
@@ -233,22 +225,16 @@ mod tests {
         air.composition_polynomial_degree_bound = Some(2 * trace_length);
 
         air.point_exponents = vec![trace_length];
-        air.constraints = vec![Arc::new(
-            |neighbors,
-             periodic_columns,
-             random_coefficients,
-             _point,
-             _gen_power,
-             precomp_evals| {
-                let constraint = neighbors[0] * periodic_columns[0] - neighbors[1];
+        air.constraints = vec![Arc::new(|constraint_eval| {
+            let constraint = constraint_eval.neighbors[0] * constraint_eval.periodic_columns[0]
+                - constraint_eval.neighbors[1];
 
-                let numerator = Felt252::ONE;
+            let numerator = Felt252::ONE;
 
-                let denominator = precomp_evals[0];
+            let denominator = constraint_eval.precomp_domains[0];
 
-                constraint * random_coefficients[0] * numerator / denominator
-            },
-        )];
+            constraint * constraint_eval.random_coefficients[0] * numerator / denominator
+        })];
 
         let coset_group_generator: Felt252 = get_subgroup_generator(trace_length);
 

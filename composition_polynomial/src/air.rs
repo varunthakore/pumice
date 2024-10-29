@@ -67,13 +67,41 @@ pub struct InteractionParams {
     pub n_interaction_elements: usize,
 }
 
-type ConstraintFunction<F> = Arc<dyn Fn(&[F], &[F], &[F], &F, &[F], &[F]) -> F>;
+pub struct ConstraintEval<F: PrimeField> {
+    pub neighbors: Vec<F>,
+    pub periodic_columns: Vec<F>,
+    pub random_coefficients: Vec<F>,
+    pub point: F,
+    pub gen_powers: Vec<F>,
+    pub precomp_domains: Vec<F>,
+}
+
+impl<F: PrimeField> ConstraintEval<F> {
+    pub fn new(
+        neighbors: Vec<F>,
+        periodic_columns: Vec<F>,
+        random_coefficients: Vec<F>,
+        point: F,
+        gen_powers: Vec<F>,
+        precomp_domains: Vec<F>,
+    ) -> Self {
+        Self {
+            neighbors,
+            periodic_columns,
+            random_coefficients,
+            point,
+            gen_powers,
+            precomp_domains,
+        }
+    }
+}
+
+type ConstraintFunction<F> = Arc<dyn Fn(ConstraintEval<F>) -> F>;
 
 // DummyAir struct definition
 #[derive(Clone)]
 pub struct DummyAir<F: PrimeField> {
     pub trace_length: usize,
-    pub n_constraints: usize,
     pub n_columns: usize,
     pub mask: Vec<(usize, usize)>,
     pub periodic_columns: Vec<PeriodicColumn<F>>,
@@ -88,7 +116,6 @@ impl<F: PrimeField> DummyAir<F> {
         assert!(trace_length.is_power_of_two());
         Self {
             trace_length,
-            n_constraints: 0,
             n_columns: 0,
             mask: vec![],
             periodic_columns: vec![],
@@ -114,7 +141,7 @@ impl<F: PrimeField> Air<F> for DummyAir<F> {
     }
 
     fn num_random_coefficients(&self) -> usize {
-        self.n_constraints
+        self.constraints.len()
     }
 
     fn num_columns(&self) -> usize {
@@ -141,14 +168,14 @@ impl<F: PrimeField> Air<F> for DummyAir<F> {
 
         let mut res = F::ZERO;
         for constraint in self.constraints.iter() {
-            res += constraint(
-                neighbors,
-                periodic_columns,
-                random_coefficients,
-                point,
-                gen_powers,
-                precomp_domains,
-            );
+            res += constraint(ConstraintEval::new(
+                neighbors.to_vec(),
+                periodic_columns.to_vec(),
+                random_coefficients.to_vec(),
+                *point,
+                gen_powers.to_vec(),
+                precomp_domains.to_vec(),
+            ));
         }
         res
     }

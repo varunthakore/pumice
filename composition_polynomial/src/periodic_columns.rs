@@ -22,8 +22,8 @@ impl<F: PrimeField> PeriodicColumn<F> {
     ) -> Self {
         let period_in_trace = values.len() * column_step;
 
-        assert!(period_in_trace != 0);
-        assert!(coset_size % period_in_trace == 0);
+        assert_ne!(period_in_trace, 0);
+        assert_eq!(coset_size % period_in_trace, 0);
         let n_copies = coset_size / period_in_trace;
 
         let offset_compensation = offset.pow([n_copies as u64]).inverse().unwrap();
@@ -55,8 +55,8 @@ impl<F: PrimeField> PeriodicColumn<F> {
         let offset = start_point.pow([self.n_copies as u64]);
         let n_values = self.lde_manager.base.size as usize;
 
-        assert!(
-            coset_size == self.n_copies * self.column_step * n_values,
+        assert_eq!(
+            coset_size, self.n_copies * self.column_step * n_values,
             "Currently coset_size must be the same as the size of the coset that was used to create the PeriodicColumn."
         );
 
@@ -90,6 +90,7 @@ pub struct CosetEvaluation<F: PrimeField> {
 
 impl<F: PrimeField> CosetEvaluation<F> {
     pub fn new(values: Vec<F>) -> Self {
+        assert!(values.len().is_power_of_two());
         Self {
             index_mask: values.len() - 1,
             values,
